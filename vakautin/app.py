@@ -35,7 +35,7 @@ def main():
             tracked_builds = [build for build in builds]
             failed_builds = [
                 build for build in tracked_builds
-                if build['status'] == 'failed'
+                if build['status'] in {'failed', 'timedout'}
             ]
             unique_failed_builds = set()
             failed_build_revs = [
