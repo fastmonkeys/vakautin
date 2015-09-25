@@ -20,7 +20,7 @@ schema = Schema({
     'unstable_tests': [Use(str)],
     'api_key': Use(str),
     'max_attempts': Use(int),
-    'debug': Use(bool)
+    'debug': bool
 })
 
 
