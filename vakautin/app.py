@@ -38,6 +38,9 @@ def main():
                 if build['status'] == 'failed'
             ]
             unique_failed_builds = set()
+            failed_build_revs = [
+                build['vcs_revision'] for build in failed_builds
+            ]
             not_failed_build_revs = [
                 build['vcs_revision'] for build in tracked_builds
                 if build not in failed_builds
@@ -51,10 +54,10 @@ def main():
                 checked_branches.add(build['branch'])
 
                 is_running = build['vcs_revision'] in not_failed_build_revs
-                times_attempted = not_failed_build_revs.count(
+                times_attempted = failed_build_revs.count(
                     build['vcs_revision']
                 )
-                if not is_running and times_attempted <= config['max_attempts']:
+                if not is_running and times_attempted < config['max_attempts']:
                     unstable_build = is_unstable_build(username, project, build)
                     if unstable_build:
                         found_unstable_builds = True
