@@ -26,6 +26,8 @@ def main():
     print("Running in pull mode...")
 
     while True:
+        found_unstable_builds = False
+
         for repository in config['tracked_repositories']:
             print("Checking repository %s" % repository)
             username, project = repository.split('/')
@@ -55,10 +57,15 @@ def main():
                 if not is_running and times_attempted <= config['max_attempts']:
                     unstable_build = is_unstable_build(username, project, build)
                     if unstable_build:
+                        found_unstable_builds = True
                         print("Retrying build...")
                         print(build['branch'], build['build_url'])
                         if config['debug']:
                             print("Simulating retry...")
                         else:
                             api.retry(username, project, build['build_num'])
-        time.sleep(60)
+
+        if found_unstable_builds:
+            time.sleep(60)
+        else:
+            time.sleep(60 * 10)
