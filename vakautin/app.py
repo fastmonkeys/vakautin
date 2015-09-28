@@ -28,45 +28,48 @@ def main():
     while True:
         found_unstable_builds = False
 
-        for repository in config['tracked_repositories']:
-            print("Checking repository %s" % repository)
-            username, project = repository.split('/')
-            builds = api.builds_for_project(username, project)
-            tracked_builds = [build for build in builds]
-            failed_builds = [
-                build for build in tracked_builds
-                if build['status'] in {'failed', 'timedout'}
-            ]
-            unique_failed_builds = set()
-            failed_build_revs = [
-                build['vcs_revision'] for build in failed_builds
-            ]
-            not_failed_build_revs = [
-                build['vcs_revision'] for build in tracked_builds
-                if build not in failed_builds
-            ]
-            checked_branches = set()
+        try:
+            for repository in config['tracked_repositories']:
+                print("Checking repository %s" % repository)
+                username, project = repository.split('/')
+                builds = api.builds_for_project(username, project)
+                tracked_builds = [build for build in builds]
+                failed_builds = [
+                    build for build in tracked_builds
+                    if build['status'] in {'failed', 'timedout'}
+                ]
+                unique_failed_builds = set()
+                failed_build_revs = [
+                    build['vcs_revision'] for build in failed_builds
+                ]
+                not_failed_build_revs = [
+                    build['vcs_revision'] for build in tracked_builds
+                    if build not in failed_builds
+                ]
+                checked_branches = set()
 
-            for build in failed_builds:
-                if build['branch'] in checked_branches:
-                    continue
+                for build in failed_builds:
+                    if build['branch'] in checked_branches:
+                        continue
 
-                checked_branches.add(build['branch'])
+                    checked_branches.add(build['branch'])
 
-                is_running = build['vcs_revision'] in not_failed_build_revs
-                times_attempted = failed_build_revs.count(
-                    build['vcs_revision']
-                )
-                if not is_running and times_attempted < config['max_attempts']:
-                    unstable_build = is_unstable_build(username, project, build)
-                    if unstable_build:
-                        found_unstable_builds = True
-                        print("Retrying build...")
-                        print(build['branch'], build['build_url'])
-                        if config['debug']:
-                            print("Simulating retry...")
-                        else:
-                            api.retry(username, project, build['build_num'])
+                    is_running = build['vcs_revision'] in not_failed_build_revs
+                    times_attempted = failed_build_revs.count(
+                        build['vcs_revision']
+                    )
+                    if not is_running and times_attempted < config['max_attempts']:
+                        unstable_build = is_unstable_build(username, project, build)
+                        if unstable_build:
+                            found_unstable_builds = True
+                            print("Retrying build...")
+                            print(build['branch'], build['build_url'])
+                            if config['debug']:
+                                print("Simulating retry...")
+                            else:
+                                api.retry(username, project, build['build_num'])
+        except requests.exceptions.RequestException as e:
+            print(e)
 
         if found_unstable_builds:
             time.sleep(60)
