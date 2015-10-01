@@ -1,7 +1,12 @@
-from .api import CircleAPI
+from .api import CircleAPI, CircleAPIError
 from .config import load_config
+
 import os
+from dateutil.tz import tzlocal
+from dateutil import parser
+from datetime import datetime, timedelta
 import time
+import requests
 
 __version__ = '0.1.0'
 
@@ -26,7 +31,7 @@ def main():
     print("Running in pull mode...")
 
     while True:
-        found_unstable_builds = False
+        sleep_time = 3600
 
         try:
             for repository in config['tracked_repositories']:
@@ -34,6 +39,11 @@ def main():
                 username, project = repository.split('/')
                 builds = api.builds_for_project(username, project)
                 tracked_builds = [build for build in builds]
+
+                last_build = parser.parse(tracked_builds[0]['author_date'])
+                if (datetime.now(tzlocal()) - last_build) < timedelta(hours=1):
+                    sleep_time = 60
+
                 failed_builds = [
                     build for build in tracked_builds
                     if build['status'] in {'failed', 'timedout'}
@@ -61,17 +71,16 @@ def main():
                     if not is_running and times_attempted < config['max_attempts']:
                         unstable_build = is_unstable_build(username, project, build)
                         if unstable_build:
-                            found_unstable_builds = True
                             print("Retrying build...")
                             print(build['branch'], build['build_url'])
                             if config['debug']:
                                 print("Simulating retry...")
                             else:
                                 api.retry(username, project, build['build_num'])
+        except CircleAPIError as e:
+            print(e)
+            sleep_time = 1800
         except requests.exceptions.RequestException as e:
             print(e)
 
-        if found_unstable_builds:
-            time.sleep(60)
-        else:
-            time.sleep(60 * 10)
+        time.sleep(sleep_time)
